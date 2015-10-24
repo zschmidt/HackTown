@@ -6,8 +6,12 @@
 	<title>Bing Elevation</title>
 </head>
 <body>
-	<input type="text" id="lat" placeholder="Enter a latitude"><br>
-	<input type="text" id="long" placeholder="Enter a longitude"><br>
+	<canvas id="myCanvas" width="1000" height="1000" style="border:1px solid #000000;">
+	</canvas><br>
+	<input type="text" id="east" value="-122.557" placeholder="Enter the east longitude"><br>
+	<input type="text" id="south" value="43.64" placeholder="Enter the south latitude"><br>
+	<input type="text" id="west" value="-123.671" placeholder="Enter the west longitude"><br>
+	<input type="text" id="north" value="44.34" placeholder="Enter the north latitude"><br>
 	<button type="button" id="btn">Find Elevation</button>
 	<div id="out"></div>
 	<script src="bingElevation.js"></script>
