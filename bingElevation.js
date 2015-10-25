@@ -24,7 +24,7 @@ function findMinMax(arr, minMax)
       minMax.max = arr[i];
     }
   }
-  document.getElementById("out").innerHTML = "<br><br><h4>Max: </h4>"+minMax.max+" feet<br><h4>Min: </h4>"+minMax.min+" feet<br><br>";
+  document.getElementById("out").innerHTML = "<strong>Max: </strong>"+minMax.max+" feet<br><br><br><br><br><br><br><strong>Min: </strong>"+minMax.min+" feet<br><br>";
 }
 
 function initMap() {
@@ -127,6 +127,7 @@ var getElevations = function(lat, lng){
 
 function drawPoints(min, max, elevations)
 {
+  var color;
   //Actually interacts with the canvas element
   for(var k = 0; k<elevations.length; k++)
   {
@@ -136,8 +137,19 @@ function drawPoints(min, max, elevations)
     }
     //stepSize is what defines the color change for change in elevation (255/range)
     var stepSize = 255/(max-Math.abs(min));
-    var color = 255 - (stepSize * (elevations[k]-min))>>0;
-    ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.3+")";
+    if(elevations[k] == max)
+    {
+      ctx.fillStyle = "rgba("+255+", "+0+", "+0+", "+0.5+")";
+    }
+    else if(elevations[k] == min)
+    {
+      ctx.fillStyle = "rgba("+0+", "+255+", "+0+", "+0.5+")";
+    }
+    else {
+      color = 255 - (stepSize * (elevations[k]-min))>>0;
+      ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.3+")";
+    }
+
     //ctx.fillRect((widthHeight/64)*(k%64),widthHeight - widthHeight/64 - (widthHeight/64 * Math.floor(k/64)),widthHeight/64,widthHeight/64);
     ctx.beginPath();
     ctx.arc((widthHeight/64)*(k%64),widthHeight - widthHeight/64 - (widthHeight/64 * Math.floor(k/64)),widthHeight/64, 0, 2 * Math.PI, false);
