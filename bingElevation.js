@@ -24,7 +24,7 @@ function findMinMax(arr, minMax)
       minMax.max = arr[i];
     }
   }
-  document.getElementById("out").innerHTML = "<strong>Max: </strong>"+minMax.max+" feet<br><br><br><br><br><br><br><strong>Min: </strong>"+minMax.min+" feet<br><br>";
+  document.getElementById("out").innerHTML = "<br><br><strong>Max: </strong>"+minMax.max+" feet<br><br><br><br><br><br><br><strong>Min: </strong>"+minMax.min+" feet<br><br>";
 }
 
 function initMap() {
