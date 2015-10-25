@@ -11,14 +11,13 @@ var main = function(){
 
   var key = "&key=AgdJmHJNbOApcjOXhgGoeD0OeiaEoxJ-zXbtF60rdVvWnD2GZeH-czRQ9lH03Vil";
 
+  var min = 999;
+  var max = 0;
+
 
   var c = document.getElementById("myCanvas");
   var ctx = c.getContext("2d");
-  ctx.fillStyle = "#FF0000";
-  ctx.fillRect(0,0,150,75);
 
-
-  var boudingBox = "http://dev.virtualearth.net/REST/v1/Elevation/Bounds?bounds=43.64,-123.671,44.34,-122.557&rows=100&cols=100&heights=sealevel"
 
 
 
@@ -40,7 +39,20 @@ var main = function(){
               var elevations = resource[j].elevations;
               for(var k = 0; k<elevations.length; k++)
               {
-                document.getElementById("out").innerHTML += "Elevation is: "+elevations[k]+"<br>";
+                //document.getElementById("out").innerHTML += "Elevation is: "+elevations[k]+"<br>";
+                if(elevations[k]<min)
+                {
+                  min = elevations[k];
+                  //document.getElementById("out").innerHTML += "New min: "+elevations[k]+"<br>";
+                }
+                if(elevations[k]>max)
+                {
+                  max = elevations[k];
+                  //document.getElementById("out").innerHTML += "New max: "+elevations[k]+"<br>";
+                }
+                var color = 255 - (.19 * (elevations[k]-26))>>0;
+                ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.7+")";
+                ctx.fillRect((1000/32)*(k%32),1000 - 1000/32 - (1000/32 * Math.floor(k/32)),1000/32,1000/32);
               }
             }
 
