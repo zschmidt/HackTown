@@ -17,6 +17,7 @@ function round(a)
 
 function drawPoints(min, max, elevations)
 {
+  document.getElementById("out").innerHTML = "<br><br><h4>Max: </h4>"+round(max*3.28)+" feet<br><h4>Min: </h4>"+round(min*3.28)+" feet<br><br>"
   for(var k = 0; k<elevations.length; k++)
   {
     var color = 255 - ((255/(max-min)) * (elevations[k]-min))>>0;
@@ -27,10 +28,41 @@ function drawPoints(min, max, elevations)
 
 function initMap() {
 
-  east = round(Number(document.getElementById("long").value) + .4);
-  south = round(Number(document.getElementById("lat").value) - .4);
-  west = round(Number(document.getElementById("long").value) - .4);
-  north = round(Number(document.getElementById("lat").value) + .4);
+  var mapquestApi = "http://www.mapquestapi.com/geocoding/v1/address?key=KM4sDe5QGtHmGxLIm6LoMhYLQ7AkGrGY&location=";
+
+  if(document.getElementById("long").value != "" && document.getElementById("lat").value != ""){
+    east = round(Number(document.getElementById("long").value) + .4);
+    south = round(Number(document.getElementById("lat").value) - .4);
+    west = round(Number(document.getElementById("long").value) - .4);
+    north = round(Number(document.getElementById("lat").value) + .4);
+  }
+  else if(document.getElementById("location").value != ""){
+    $.ajax(
+    {
+        type: 'GET',
+        cache : false,
+        url : mapquestApi + document.getElementById("location").value,
+        async: false,
+        crossDomain : true,
+        success: function (data)
+        {
+            data = data.results[0].locations[0].latLng;
+
+            east = round((data.lng) + .4);
+            south = round((data.lat) - .4);
+            west = round((data.lng) - .4);
+            north = round((data.lat) + .4);
+        },
+        error: function (e)
+        {
+            console.log("Error! ",e);
+        }
+    });
+
+  }
+  else {
+    return;
+  }
 
   var point = new google.maps.LatLng(avg(north, south), avg(east, west));
 
