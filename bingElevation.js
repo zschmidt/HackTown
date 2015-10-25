@@ -213,15 +213,36 @@ function arrDerivative(arr){
   return retArr;
 }
 
-
-var dervButton = document.getElementById("dervBtn");
-var normButton = document.getElementById("normBtn");
-
-dervButton.onclick = function(){
+document.getElementById("dervBtn").onclick = function(){
   derivative = true;
   initMap();
 }
-normButton.onclick = function(){
+document.getElementById("normBtn").onclick = function(){
   derivative = false;
+  initMap();
+}
+
+document.getElementById("lBtn").onclick = function(){
+  lng = round(lng - .4);
+  document.getElementById("lat").value = lat;
+  document.getElementById("long").value = lng
+  initMap();
+}
+document.getElementById("uBtn").onclick = function(){
+  lat = round(lat + .4);
+  document.getElementById("lat").value = lat;
+  document.getElementById("long").value = lng
+  initMap();
+}
+document.getElementById("dBtn").onclick = function(){
+  lat = round(lat - .4);
+  document.getElementById("lat").value = lat;
+  document.getElementById("long").value = lng
+  initMap();
+}
+document.getElementById("rBtn").onclick = function(){
+  lng = round(lng + .4);
+  document.getElementById("lat").value = lat;
+  document.getElementById("long").value = lng
   initMap();
 }
