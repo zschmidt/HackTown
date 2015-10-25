@@ -223,25 +223,25 @@ document.getElementById("normBtn").onclick = function(){
 }
 
 document.getElementById("lBtn").onclick = function(){
-  lng = round(lng - .4);
+  lng = round(lng - .2);
   document.getElementById("lat").value = lat;
   document.getElementById("long").value = lng
   initMap();
 }
 document.getElementById("uBtn").onclick = function(){
-  lat = round(lat + .4);
+  lat = round(lat + .2);
   document.getElementById("lat").value = lat;
   document.getElementById("long").value = lng
   initMap();
 }
 document.getElementById("dBtn").onclick = function(){
-  lat = round(lat - .4);
+  lat = round(lat - .2);
   document.getElementById("lat").value = lat;
   document.getElementById("long").value = lng
   initMap();
 }
 document.getElementById("rBtn").onclick = function(){
-  lng = round(lng + .4);
+  lng = round(lng + .2);
   document.getElementById("lat").value = lat;
   document.getElementById("long").value = lng
   initMap();
