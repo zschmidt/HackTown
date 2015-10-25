@@ -25,8 +25,11 @@ function drawPoints(min, max, elevations)
   for(var k = 0; k<elevations.length; k++)
   {
     var color = 255 - ((255/(max-min)) * (elevations[k]-min))>>0;
-    ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.7+")";
-    ctx.fillRect((1000/64)*(k%64),1000 - 1000/64 - (1000/64 * Math.floor(k/64)),1000/64,1000/64);
+    ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.3+")";
+    //ctx.fillRect((1000/64)*(k%64),1000 - 1000/64 - (1000/64 * Math.floor(k/64)),1000/64,1000/64);
+    ctx.beginPath();
+    ctx.arc((1000/64)*(k%64),1000 - 1000/64 - (1000/64 * Math.floor(k/64)),1000/64, 0, 2 * Math.PI, false);
+    ctx.fill();
   }
 }
 
