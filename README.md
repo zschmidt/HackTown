@@ -1,5 +1,11 @@
 # HackTown
 This is the workspace for our HackTown project
+
+UPDATE: Now appears to be CORS-complient (meaning it will run on anything!)
+
+CURRENT ISSUES:
+1.) If the minimum elevation for a given area is negative, the output gets messed up
+
 https://developers.google.com/maps/documentation/javascript/?hl=en_US
-https://developers.google.com/maps/documentation/elevation/intro?hl=en_US
-https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en-US
+https://msdn.microsoft.com/en-us/library/jj158961.aspx
+http://www.mapquestapi.com/geocoding/
