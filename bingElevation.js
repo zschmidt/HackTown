@@ -1,12 +1,8 @@
+var widthHeight = document.getElementById("myCanvas").clientWidth;
 var lat;
 var lng;
 var c = document.getElementById("myCanvas");
 var ctx = c.getContext("2d");
-var apiLocation = "http://dev.virtualearth.net/REST/v1/Elevation/Bounds?bounds=";
-var queries = "&rows=32&cols=32&heights=sealevel";
-var key = "&key=AgdJmHJNbOApcjOXhgGoeD0OeiaEoxJ-zXbtF60rdVvWnD2GZeH-czRQ9lH03Vil";
-var min = 99999;
-var max = -9999;
 var derivative = false;
 
 function avg(a, b)
@@ -19,22 +15,24 @@ function round(a)
   return ((1000*a)>>0)/1000;
 }
 
-function drawPoints(min, max, elevations)
+function findMinMax(arr, minMax)
 {
-  document.getElementById("out").innerHTML = "<br><br><h4>Max: </h4>"+round(max*3.28)+" feet<br><h4>Min: </h4>"+round(min*3.28)+" feet<br><br>"
-  for(var k = 0; k<elevations.length; k++)
+  for(var i = 0; i<arr.length; i++)
   {
-    var color = 255 - ((255/(max-min)) * (elevations[k]-min))>>0;
-    ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.3+")";
-    //ctx.fillRect((1000/64)*(k%64),1000 - 1000/64 - (1000/64 * Math.floor(k/64)),1000/64,1000/64);
-    ctx.beginPath();
-    ctx.arc((1000/64)*(k%64),1000 - 1000/64 - (1000/64 * Math.floor(k/64)),1000/64, 0, 2 * Math.PI, false);
-    ctx.fill();
+    arr[i] = round(arr[i]*3.28);
+    if(arr[i]<minMax.min)
+    {
+      minMax.min = arr[i];
+    }
+    if(arr[i]>minMax.max)
+    {
+      minMax.max = arr[i];
+    }
   }
+  document.getElementById("out").innerHTML = "<br><br><h4>Max: </h4>"+minMax.max+" feet<br><h4>Min: </h4>"+minMax.min+" feet<br><br>";
 }
 
 function initMap() {
-
   var mapquestApi = "http://www.mapquestapi.com/geocoding/v1/address?key=KM4sDe5QGtHmGxLIm6LoMhYLQ7AkGrGY&location=";
 
   if(document.getElementById("long").value != "" && document.getElementById("lat").value != ""){
@@ -42,25 +40,18 @@ function initMap() {
     lng = Number(document.getElementById("long").value);
   }
   else if(document.getElementById("location").value != ""){
-    $.ajax(
-    {
-        type: 'GET',
-        cache : false,
-        url : mapquestApi + document.getElementById("location").value,
-        async: false,
-        crossDomain : true,
-        success: function (data)
-        {
-            data = data.results[0].locations[0].latLng;
-
-            lat = data.lat;
-            lng = data.lng;
-        },
-        error: function (e)
-        {
-            console.log("Error! ",e);
-        }
-    });
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open(
+        "GET", 
+        mapquestApi + document.getElementById("location").value, 
+        false 
+      ); // false for synchronous request
+    xmlHttp.send(null);
+    //xmlHttp.responseText; 
+    lat = JSON.parse(xmlHttp.responseText);
+    lat = lat.results[0].locations[0].latLng;
+    lng = lat.lng;
+    lat = lat.lat; // gross :)
 
   }
   else {
@@ -78,84 +69,107 @@ function initMap() {
 
 }
 
+var drawElevation = function(){
+  var minMax = {};
+  minMax.min = 99999;
+  minMax.max = -9999;
+
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  var elevations = interleave(
+    getBox(round(lat - .2), round(lng - .2)),
+    getBox(round(lat - .2), round(lng + .2)),
+    getBox(round(lat + .2), round(lng - .2)),
+    getBox(round(lat + .2), round(lng + .2))
+  );
+
+
+  if(derivative)
+  {
+    var z = [];
+    for(var i = 0; i<64; i++)
+    {
+      z[i] = [];
+    }
+    for(var i = 0; i<4096; i++)
+    {
+      z[(i/64)>>0][i%64] = elevations[i];
+    }
+    elevations = arrDerivative(z);
+  }
+
+  findMinMax(elevations, minMax);
+
+  drawPoints(minMax.min, minMax.max, elevations);
+}
+
 var getBox = function(lat, lng){
+  var apiLocation = "http://dev.virtualearth.net/REST/v1/Elevation/Bounds?bounds=";
+  var queries = "&rows=32&cols=32&heights=sealevel";
+  var key = "&key=AgdJmHJNbOApcjOXhgGoeD0OeiaEoxJ-zXbtF60rdVvWnD2GZeH-czRQ9lH03Vil";
   var retData = "nothing";
   west = lng - .2;
   north = lat + .2;
   east = lng + .2;
   south = lat - .2;
-  $.ajax(
-  {
-      type: 'GET',
-      cache : false,
-      url : apiLocation+ south +","+ west + ","+ north + "," + east + queries +key,
-      async: false,
-      crossDomain : true,
-      success: function (data)
-      {
-          retData = data.resourceSets[0].resources[0].elevations;
-      },
-      error: function (e)
-      {
-          console.log("Error! ",e);
-      }
-  });
+
+  var xmlHttp = new XMLHttpRequest();
+  xmlHttp.open(
+      "GET", 
+      apiLocation+ south +","+ west + ","+ north + "," + east + queries +key, 
+      false 
+    ); // false for synchronous request
+  xmlHttp.send(null);
+  retData = JSON.parse(xmlHttp.responseText);
+  retData = retData.resourceSets[0].resources[0].elevations;
+
   return retData;
 }
+
+function drawPoints(min, max, elevations)
+{
+  for(var k = 0; k<elevations.length; k++)
+  {
+    if(elevations[k] !=min && elevations[k] <= 0)
+    {
+      //debugger;
+    }
+    //Issue: This works... poorly... with negative elevations
+    var color = elevations[k] == min ? 0 : 255 - ((255/(max-Math.abs(min))) * (elevations[k]-min))>>0;
+    ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.3+")";
+    //ctx.fillRect((widthHeight/64)*(k%64),widthHeight - widthHeight/64 - (widthHeight/64 * Math.floor(k/64)),widthHeight/64,widthHeight/64);
+    ctx.beginPath();
+    ctx.arc((widthHeight/64)*(k%64),widthHeight - widthHeight/64 - (widthHeight/64 * Math.floor(k/64)),widthHeight/64, 0, 2 * Math.PI, false);
+    ctx.fill();
+  }
+}
+
 
 function interleave(a1, a2, a3, a4)
 {
   var elevations = [];
-  for(var i = 0; i<32; i++)
+  for(var i=0; i<32; i++)
   {
-    for(var j = 0; j<32; j++)
-    {
-      elevations.push(a1[i*32 + j]);
-    }
-    for(var j = 0; j<32; j++)
-    {
-      elevations.push(a3[i*32 + j]);
-    }
+    elevations = elevations.concat(a1.splice(0, 32));
+    elevations = elevations.concat(a2.splice(0, 32));
   }
-  for(var i = 0; i<32; i++)
+  for(var i=0; i<32; i++)
   {
-    for(var j = 0; j<32; j++)
-    {
-      elevations.push(a2[i*32 + j]);
-    }
-    for(var j = 0; j<32; j++)
-    {
-      elevations.push(a4[i*32 + j]);
-    }
+    elevations = elevations.concat(a3.splice(0, 32));
+    elevations = elevations.concat(a4.splice(0, 32));
   }
   return elevations;
 }
 
-function findMinMax(arr)
-{
-  for(var i = 0; i<arr.length; i++)
-  {
-    if(arr[i]<min)
-    {
-      min = arr[i];
-    }
-    if(arr[i]>max)
-    {
-      max = arr[i];
-    }
-  }
-}
-
-function x(a, y)
-{
-  if(a == undefined)
-    return y;
-  else {
-    return Math.abs(a-y);
-  }
-}
-
 function arrDerivative(arr){
+  function x(a, y)
+  {
+    if(a == undefined)
+      return y;
+    else {
+      return Math.abs(a-y);
+    }
+  }
   var retArr = [];
   arr[-1] = [];
   arr[64] = [];
@@ -181,38 +195,6 @@ function arrDerivative(arr){
     }
   }
   return retArr;
-}
-
-var drawElevation = function(){
-  min = 99999;
-  max = -9999;
-
-  ctx.clearRect(0, 0, c.width, c.height);
-
-
-  var elevations = interleave (getBox(round(lat - .2), round(lng - .2)),
-    getBox(round(lat + .2), round(lng - .2)),
-    getBox(round(lat - .2), round(lng + .2)),
-    getBox(round(lat + .2), round(lng + .2)));
-
-
-  if(derivative)
-  {
-    var z = [];
-    for(var i = 0; i<64; i++)
-    {
-      z[i] = [];
-    }
-    for(var i = 0; i<4096; i++)
-    {
-      z[(i/64)>>0][i%64] = elevations[i];
-    }
-    elevations = arrDerivative(z);
-  }
-
-  findMinMax(elevations);
-
-  drawPoints(min, max, elevations);
 }
 
 var dervButton = document.getElementById("dervBtn");
