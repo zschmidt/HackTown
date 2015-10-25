@@ -49,21 +49,16 @@ function initMap() {
     lat = lat.results[0].locations[0].latLng;
     lng = lat.lng;
     lat = lat.lat; // gross :)
-
   }
   else {
     return;
   }
-
   var point = new google.maps.LatLng(lat, lng);
-
   var map = new google.maps.Map(document.getElementById('map'), {
     center: point,
     zoom: 10
   });
-
   drawElevation();
-
 }
 
 var drawElevation = function(){
@@ -139,8 +134,9 @@ function drawPoints(min, max, elevations)
     {
       //debugger;
     }
-    //Issue: This works... poorly... with negative elevations
-    var color = elevations[k] == min ? 0 : 255 - ((255/(max-Math.abs(min))) * (elevations[k]-min))>>0;
+    //stepSize is what defines the color change for change in elevation (255/range)
+    var stepSize = 255/(max-Math.abs(min));
+    var color = 255 - (stepSize * (elevations[k]-min))>>0;
     ctx.fillStyle = "rgba("+color+", "+color+", "+color+", "+0.3+")";
     //ctx.fillRect((widthHeight/64)*(k%64),widthHeight - widthHeight/64 - (widthHeight/64 * Math.floor(k/64)),widthHeight/64,widthHeight/64);
     ctx.beginPath();
@@ -188,7 +184,6 @@ function arrDerivative(arr){
   {
     for(var j=0; j<64; j++)
     {
-
       retArr.push(
         Math.max(
           cmp(arr[i+1][j], arr[i][j]),
