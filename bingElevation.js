@@ -1,17 +1,12 @@
 var widthHeight = document.getElementById("myCanvas").clientWidth;
-var lat;
-var lng;
 var c = document.getElementById("myCanvas");
 var ctx = c.getContext("2d");
 var derivative = false;
 
-function avg(a, b)
-{
-  return (Number(a) + Number(b))/2;
-}
 
 function round(a)
 {
+  //returns 'a' rounded to three decimal places
   return ((1000*a)>>0)/1000;
 }
 
@@ -33,6 +28,8 @@ function findMinMax(arr, minMax)
 }
 
 function initMap() {
+  //Calls mapQuest to get lat/lng for an address
+  //Generates a new google map centered on lat/lng
   var mapquestApi = "http://www.mapquestapi.com/geocoding/v1/address?key=KM4sDe5QGtHmGxLIm6LoMhYLQ7AkGrGY&location=";
 
   if(document.getElementById("long").value != "" && document.getElementById("lat").value != ""){
@@ -42,12 +39,12 @@ function initMap() {
   else if(document.getElementById("location").value != ""){
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.open(
-        "GET", 
-        mapquestApi + document.getElementById("location").value, 
-        false 
+        "GET",
+        mapquestApi + document.getElementById("location").value,
+        false
       ); // false for synchronous request
     xmlHttp.send(null);
-    //xmlHttp.responseText; 
+    //xmlHttp.responseText;
     lat = JSON.parse(xmlHttp.responseText);
     lat = lat.results[0].locations[0].latLng;
     lng = lat.lng;
@@ -74,60 +71,68 @@ var drawElevation = function(){
   minMax.min = 99999;
   minMax.max = -9999;
 
+  var tmpArr = [];
+
   ctx.clearRect(0, 0, c.width, c.height);
 
-  var elevations = interleave(
-    getBox(round(lat - .2), round(lng - .2)),
-    getBox(round(lat - .2), round(lng + .2)),
-    getBox(round(lat + .2), round(lng - .2)),
-    getBox(round(lat + .2), round(lng + .2))
-  );
+  getElevations(round(lat - .2), round(lng - .2)).then(function(a){
+    tmpArr.push(a);
+    getElevations(round(lat - .2), round(lng + .2)).then(function(b){
+      tmpArr.push(b);
+      getElevations(round(lat + .2), round(lng - .2)).then(function(c){
+        tmpArr.push(c);
+        getElevations(round(lat + .2), round(lng + .2)).then(function(d){
+          tmpArr.push(d);
+          elevations = interleave(tmpArr[0], tmpArr[1], tmpArr[2], tmpArr[3]);
+          if(derivative)
+          {
+            var z = [];
+            for(var i = 0; i<64; i++)
+            {
+              z[i] = [];
+            }
+            for(var i = 0; i<4096; i++)
+            {
+              z[(i/64)>>0][i%64] = elevations[i];
+            }
+            elevations = arrDerivative(z);
+          }
 
-
-  if(derivative)
-  {
-    var z = [];
-    for(var i = 0; i<64; i++)
-    {
-      z[i] = [];
-    }
-    for(var i = 0; i<4096; i++)
-    {
-      z[(i/64)>>0][i%64] = elevations[i];
-    }
-    elevations = arrDerivative(z);
-  }
-
-  findMinMax(elevations, minMax);
-
-  drawPoints(minMax.min, minMax.max, elevations);
+          findMinMax(elevations, minMax);
+          drawPoints(minMax.min, minMax.max, elevations);
+        });
+      });
+    });
+  });
 }
 
-var getBox = function(lat, lng){
+var getElevations = function(lat, lng){
   var apiLocation = "http://dev.virtualearth.net/REST/v1/Elevation/Bounds?bounds=";
   var queries = "&rows=32&cols=32&heights=sealevel";
   var key = "&key=AgdJmHJNbOApcjOXhgGoeD0OeiaEoxJ-zXbtF60rdVvWnD2GZeH-czRQ9lH03Vil";
-  var retData = "nothing";
+  var retData;
+  var deferred = $.Deferred();
   west = lng - .2;
   north = lat + .2;
   east = lng + .2;
   south = lat - .2;
 
-  var xmlHttp = new XMLHttpRequest();
-  xmlHttp.open(
-      "GET", 
-      apiLocation+ south +","+ west + ","+ north + "," + east + queries +key, 
-      false 
-    ); // false for synchronous request
-  xmlHttp.send(null);
-  retData = JSON.parse(xmlHttp.responseText);
-  retData = retData.resourceSets[0].resources[0].elevations;
+  $.ajax({
+    type: 'GET',
+    url: apiLocation+ south +","+ west + ","+ north + "," + east + queries +key + "&jsonp=?",
+    dataType: 'jsonp',
+  }).done(function (data) {
+    deferred.resolve(data.resourceSets[0].resources[0].elevations);
+  }).fail(function (XHR, status, error) {
+    console.log(error);
+  });
 
-  return retData;
+  return deferred;
 }
 
 function drawPoints(min, max, elevations)
 {
+  //Actually interacts with the canvas element
   for(var k = 0; k<elevations.length; k++)
   {
     if(elevations[k] !=min && elevations[k] <= 0)
@@ -147,6 +152,7 @@ function drawPoints(min, max, elevations)
 
 function interleave(a1, a2, a3, a4)
 {
+  //Todo: Generalize this to be able to take an array (of length x^2)
   var elevations = [];
   for(var i=0; i<32; i++)
   {
@@ -162,7 +168,7 @@ function interleave(a1, a2, a3, a4)
 }
 
 function arrDerivative(arr){
-  function x(a, y)
+  function cmp(a, y)
   {
     if(a == undefined)
       return y;
@@ -183,19 +189,23 @@ function arrDerivative(arr){
     for(var j=0; j<64; j++)
     {
 
-
-      retArr.push(Math.max(x(arr[i+1][j], arr[i][j]),
-                            x(arr[i+1][j+1], arr[i][j]),
-                            x(arr[i+1][j-1], arr[i][j]),
-                            x(arr[i][j+1], arr[i][j]),
-                            x(arr[i][j-1], arr[i][j]),
-                            x(arr[i-1][j], arr[i][j]),
-                            x(arr[i-1][j+1], arr[i][j]),
-                            x(arr[i-1][j-1], arr[i][j])));
+      retArr.push(
+        Math.max(
+          cmp(arr[i+1][j], arr[i][j]),
+          cmp(arr[i+1][j+1], arr[i][j]),
+          cmp(arr[i+1][j-1], arr[i][j]),
+          cmp(arr[i][j+1], arr[i][j]),
+          cmp(arr[i][j-1], arr[i][j]),
+          cmp(arr[i-1][j], arr[i][j]),
+          cmp(arr[i-1][j+1], arr[i][j]),
+          cmp(arr[i-1][j-1], arr[i][j])
+        )
+      );
     }
   }
   return retArr;
 }
+
 
 var dervButton = document.getElementById("dervBtn");
 var normButton = document.getElementById("normBtn");
