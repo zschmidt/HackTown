@@ -2,6 +2,9 @@ var widthHeight = document.getElementById("myCanvas").clientWidth;
 var c = document.getElementById("myCanvas");
 var ctx = c.getContext("2d");
 var derivative = false;
+var latLng = {};
+var scale = .2;
+var map;
 
 
 function round(a)
@@ -24,17 +27,58 @@ function findMinMax(arr, minMax)
       minMax.max = arr[i];
     }
   }
-  document.getElementById("out").innerHTML = "<br><br><strong>Max: </strong>"+minMax.max+" feet<br><br><br><br><br><br><br><strong>Min: </strong>"+minMax.min+" feet<br><br>";
+  document.getElementById("elevationStats").innerHTML = "<br><br><strong>Max: </strong>"+minMax.max+" feet<br><br><br><br><br><br><br><strong>Min: </strong>"+minMax.min+" feet<br><br>";
 }
 
-function initMap() {
+function getBoundingBox(boundingBox)
+{
+  var NE = boundingBox.getNorthEast();
+  var north = NE.lat();
+  var east = NE.lng();
+  var SW = boundingBox.getSouthWest();
+  var south = SW.lat();
+  var west = SW.lng();
+
+  return {north: Number(north), east: Number(east), south: Number(south), west: Number(west)};
+
+}
+
+function getTimeString(millis)
+{
+  var date = new Date(0);
+  date.setUTCSeconds(millis);
+  var retString = date.toTimeString().split(' ')[0];
+  retString += (retString.substr(0,2) < 12 ? " AM" : " PM");
+  retString = String(Number(retString.substr(0,2)) % 12) + retString.substr(2,retString.length-2);
+  return retString;
+}
+
+function getForecast(lat, lng)
+{
+  var forecastApi = "http://api.openweathermap.org/data/2.5/weather?lat="; //44&lon=-123
+  var key = "&appid=d2612e03455401d5d5d53a0dde82c630";
+
+  var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open(
+        "GET",
+        forecastApi + lat + "&lon=" + lng + key,
+        false
+      );
+    xmlHttp.send(null);
+    var forecast = JSON.parse(xmlHttp.responseText);
+    document.getElementById("temperature").innerHTML = round((forecast.main.temp * (9/5)) - 459.67) + " &#8457;";
+    document.getElementById("sunrise").innerHTML = getTimeString(forecast.sys.sunrise);
+    document.getElementById("sunset").innerHTML = getTimeString(forecast.sys.sunset);
+}
+
+function getLatLng()
+{
   //Calls mapQuest to get lat/lng for an address
-  //Generates a new google map centered on lat/lng
   var mapquestApi = "http://www.mapquestapi.com/geocoding/v1/address?key=KM4sDe5QGtHmGxLIm6LoMhYLQ7AkGrGY&location=";
 
   if(document.getElementById("long").value != "" && document.getElementById("lat").value != ""){
-    lat = Number(document.getElementById("lat").value);
-    lng = Number(document.getElementById("long").value);
+    setLatLng(Number(document.getElementById("lat").value),
+        Number(document.getElementById("long").value));
   }
   else if(document.getElementById("location").value != ""){
     var xmlHttp = new XMLHttpRequest();
@@ -47,36 +91,115 @@ function initMap() {
     //xmlHttp.responseText;
     lat = JSON.parse(xmlHttp.responseText);
     lat = lat.results[0].locations[0].latLng;
-    lng = lat.lng;
-    lat = lat.lat; // gross :)
+    setLatLng(lat.lat, lat.lng);
   }
   else {
     return;
   }
-  var point = new google.maps.LatLng(lat, lng);
-  var map = new google.maps.Map(document.getElementById('map'), {
-    center: point,
-    zoom: 10
-  });
-  drawElevation();
+  return latLng;
 }
 
-var drawElevation = function(){
+function setLatLng(lat, lng)
+{
+  latLng.lat = lat;
+  latLng.lng = lng;
+  setLatLngInputs(lat, lng);
+}
+
+function setLatLangFromMap(map)
+{
+  var tmp = map.getCenter().toString();
+  tmp = tmp.split(",");
+  setLatLng(tmp[0].substr(1), tmp[1].substr(1,tmp[1].length-2));
+}
+
+function setLatLngInputs(lat, lng)
+{
+  document.getElementById("lat").value = lat;
+  document.getElementById("long").value = lng;
+}
+
+function clearLatLngInputs()
+{
+  document.getElementById("lat").value = "";
+  document.getElementById("long").value = "";
+}
+
+function clearCanvas()
+{
+  c.width = c.width;
+  //alt way
+  //ctx.clearRect(0, 0, c.width, c.height);
+}
+
+
+function initMap() {
+
+  //This function is called whenever the pages loads or the buttons are clicked
+
+  latLng = getLatLng();
+  var lat = latLng.lat;
+  var lng = latLng.lng;
+
+  getForecast(lat, lng);
+
+  //Generates a new google map centered on lat/lng
+
+  if(!(!!map))
+  {
+    var point = new google.maps.LatLng(lat, lng);
+    map = new google.maps.Map(document.getElementById('map'), {
+      center: point,
+      zoom: 10
+    });
+  }
+  else
+  {
+    //Perhaps panTo??
+    // map.setCenter(new google.maps.LatLng(-34, 151));
+    // map.setCenter({lat: -34, lng: 151}); 
+  }
+
+  map.addListener('idle', function() {
+    var box = getBoundingBox(map.getBounds());
+    scale = (box.east-box.west)/4;
+    setLatLangFromMap(map);
+    latLng = getLatLng();
+    lat = latLng.lat;
+    lng = latLng.lng;
+    drawElevation(lat, lng);
+    getForecast(lat, lng);
+  });
+
+  map.addListener('dragstart', function() {
+    clearCanvas();
+  });
+  map.addListener('zoom_changed', function() {
+    clearCanvas();
+  });
+}
+
+var drawElevation = function(lat, lng){
   var minMax = {};
   minMax.min = 99999;
   minMax.max = -9999;
 
   var tmpArr = [];
 
-  ctx.clearRect(0, 0, c.width, c.height);
+  //This was a failed attempt at a loading screen
 
-  getElevations(round(lat - .2), round(lng - .2)).then(function(a){
+  // ctx.fillStyle = "rgba(255,255,255,1)";
+  // ctx.fillRect(0,0,c.width, c.height);
+  // ctx.fillStyle = "rgba(0,0,0,1)";
+  // ctx.fillText("Loading", c.width/2, c.height/2);
+
+  getElevations(round(lat - scale), round(lng - scale)).then(function(a){
     tmpArr.push(a);
-    getElevations(round(lat - .2), round(lng + .2)).then(function(b){
+    getElevations(round(lat - scale), round(lng + scale)).then(function(b){
       tmpArr.push(b);
-      getElevations(round(lat + .2), round(lng - .2)).then(function(c){
+      getElevations(round(lat + scale), round(lng - scale)).then(function(c){
         tmpArr.push(c);
-        getElevations(round(lat + .2), round(lng + .2)).then(function(d){
+        getElevations(round(lat + scale), round(lng + scale)).then(function(d){
           tmpArr.push(d);
           elevations = interleave(tmpArr[0], tmpArr[1], tmpArr[2], tmpArr[3]);
           if(derivative)
@@ -107,13 +230,36 @@ var getElevations = function(lat, lng){
   var key = "&key=AgdJmHJNbOApcjOXhgGoeD0OeiaEoxJ-zXbtF60rdVvWnD2GZeH-czRQ9lH03Vil";
   var retData;
   var deferred = $.Deferred();
-  west = lng - .2;
-  north = lat + .2;
-  east = lng + .2;
-  south = lat - .2;
+
+  if(map.getBounds())
+  {
+    //console.log("map.getBounds() was true");
+    // var NE = map.getBounds().getNorthEast();
+    // console.log("These is the NE lat"+ NE.lat());
+    // north = NE.lat();
+    // console.log("These are the SW "+ map.getBounds().getSouthWest());
+  }
+  else
+  {
+    //console.log("map.getBounds() was false");
+  }
+
+  
+
+
+  west = lng - scale;
+  north = lat + scale;
+  east = lng + scale;
+  south = lat - scale;
+
+  // console.log("West: "+west);
+  // console.log("North: "+north);
+  // console.log("East: "+east);
+  // console.log("South: "+south);
 
   $.ajax({
     type: 'GET',
+    async: true,
     url: apiLocation+ south +","+ west + ","+ north + "," + east + queries +key + "&jsonp=?",
     dataType: 'jsonp',
   }).done(function (data) {
@@ -127,14 +273,13 @@ var getElevations = function(lat, lng){
 
 function drawPoints(min, max, elevations)
 {
+  clearCanvas();
+  document.getElementById('elevationLayer').checked = true;
+  console.log("Drawing to the canvas");
   var color;
   //Actually interacts with the canvas element
   for(var k = 0; k<elevations.length; k++)
   {
-    if(elevations[k] !=min && elevations[k] <= 0)
-    {
-      //debugger;
-    }
     //stepSize is what defines the color change for change in elevation (255/range)
     var stepSize = 255/(max-Math.abs(min));
     if(elevations[k] == max)
@@ -214,35 +359,28 @@ function arrDerivative(arr){
 }
 
 document.getElementById("dervBtn").onclick = function(){
+  clearCanvas();
+  clearLatLngInputs();
   derivative = true;
   initMap();
 }
 document.getElementById("normBtn").onclick = function(){
+  clearCanvas();
+  clearLatLngInputs();
   derivative = false;
   initMap();
 }
+document.getElementById("elevationLayer").onclick = function()
+{
+  if (document.getElementById('elevationLayer').checked) 
+  {
+      var box = getBoundingBox(map.getBounds());
+      scale = (box.east-box.west)/4;
+      drawElevation(latLng.lat, latLng.lng);
+  } else {
+      clearCanvas();
+  }
+}
 
-document.getElementById("lBtn").onclick = function(){
-  lng = round(lng - .2);
-  document.getElementById("lat").value = lat;
-  document.getElementById("long").value = lng
-  initMap();
-}
-document.getElementById("uBtn").onclick = function(){
-  lat = round(lat + .2);
-  document.getElementById("lat").value = lat;
-  document.getElementById("long").value = lng
-  initMap();
-}
-document.getElementById("dBtn").onclick = function(){
-  lat = round(lat - .2);
-  document.getElementById("lat").value = lat;
-  document.getElementById("long").value = lng
-  initMap();
-}
-document.getElementById("rBtn").onclick = function(){
-  lng = round(lng + .2);
-  document.getElementById("lat").value = lat;
-  document.getElementById("long").value = lng
-  initMap();
-}
+
+
